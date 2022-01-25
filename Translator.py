@@ -17,7 +17,7 @@ class Data():
             lines = file.read().split("\n")
             lines.pop()
             file.close()
-        for line in lines[-5000:]:
+        for line in lines[-20000:-15000]:
             line = re.split(r"\t", line)
             sentence = re.sub(r"[!.?;#$/,'\*\-\"]"," ", line[0]).lower().split()
             eng.append(sentence)
@@ -44,8 +44,8 @@ class Data():
         return word_tokens_eng, word_tokens_tur
     def vectorize_sentences(self):
         eng, tur, eng_words, tur_words= self.read_data()
-        max_eng_seq = max([len(i) for i in eng])
-        max_tur_seq = max([len(i) for i in tur])
+        max_eng_seq = 101 #max([len(i) for i in eng])
+        max_tur_seq = 71 #max([len(i) for i in tur])
         word_token_eng, word_token_tur = self.tokenize_words(eng_words, tur_words)
         encoder_inp_eng, decoder_inp_tur = np.zeros(shape= (len(eng), max_eng_seq + 2), dtype = np.uint32), np.zeros(shape = (len(tur), max_tur_seq + 2), dtype = np.uint32) 
         decoder_out = np.zeros(shape = (len(tur), max_tur_seq + 2), dtype = np.uint32) 
@@ -70,6 +70,8 @@ def get_model(max_eng_token, max_tur_token, embedding_dim, lstm_units, max_eng_s
     decoder_input = tf.keras.Input(shape = ( max_tur_seq))
     decoder_embedding_out = tf.keras.layers.Embedding(max_tur_token + 1, embedding_dim)(decoder_input)
     output = tf.keras.layers.LSTM(lstm_units, return_sequences = True)(decoder_embedding_out, initial_state = states)
+    output = tf.keras.layers.Dropout(0.5)(output)
+    output = tf.keras.layers.Dense(32, activation = "relu")(output)
     output = tf.keras.layers.Dense(max_tur_token + 1, activation = "softmax")(output)
     model = tf.keras.Model([encoder_input, decoder_input], output)
     return model
@@ -85,10 +87,14 @@ if __name__ == "__main__" :
     output = data.decoder_out
     max_english_token, max_tur_token = data.max_eng_token, data.max_tur_token
     max_eng_seq_len, max_tur_seq_len = data.max_eng_seq_len, data.max_tur_seq_len
-    model = get_model(max_english_token, max_tur_token, 256, 1024, max_eng_seq_len, max_tur_seq_len)
-    model.compile(optimizer="Adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
-    model.fit([encoder_inp, decoder_inp], output, batch_size = 64, epochs = 2, validation_split = 0.1 )
-    
+    # model = get_model(max_english_token, max_tur_token, 64, 128, max_eng_seq_len, max_tur_seq_len)
+    # model.compile(optimizer="Adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+    # model.fit([encoder_inp, decoder_inp], output, batch_size = 64, epochs = 3, validation_split = 0.1 )
+    # model.save("C:\\Users\\ufuk\\Desktop\\Translator\\my_model.h5")
+    model = tf.keras.models.load_model("C:\\Users\\ufuk\\Desktop\\Translator\\my_model.h5")
+    x, y = encoder_inp , decoder_inp
+    z = output
+    model.predict([x[0], y[0]])
     
 
     

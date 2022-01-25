@@ -5,10 +5,17 @@ import re
 
 
 def generate_data(data):
+    eng_words, tur_words = {}, {}
+    vect_eng, vect_tur = [], []
+    max_english_seq, max_tur_seq = 0, 0
+    max_english_words, max_tur_words =0, 0
     with open(data, 'r', encoding = "utf-8") as f:
-        lines = f.read().split("\n")
-        for i in lines[0:5]:
-            print(i)
+        lines = f.read().lower().split("\n")
+        for line in lines:
+            line = line.split("\t")
+            
+
+        
 
 def generate_model(max_inp_words,embedding_dim, inp, max_tar_words, lstm_dim, tar ):
     encoder_input = tf.keras.Input(shape = (None, max_inp_words))
