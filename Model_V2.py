@@ -1,13 +1,19 @@
 import numpy as np
-import Data_V2
+import Data
 import tensorflow as tf
 
+
+
 ###########################################
-Encoder_Input, Dec_For_Input, Dec_For_Output, Dec_Back_Inp, Dec_Back_Out = Data_V2.PrepareData("tur.txt")
-EngWord = Data_V2.e
-TurWord = Data_V2.t
-MaxTurLen = Data_V2.MaxLenTur
-MaxEngLen = Data_V2.MaxLenEng
+Encoder_Input, Decoder_Input, Decoder_Output= Data.PrepareData("tur.txt")
+EngWord = Data.e
+TurWord = Data.t
+MaxTurLen = Data.MaxLenTur
+MaxEngLen = Data.MaxLenEng
+
+Encoder_Input = Encoder_Input[:45000]
+Decoder_Input = Decoder_Input[:45000]
+Decoder_Output = Decoder_Output[:45000]
 
 ############################################
 
@@ -21,45 +27,36 @@ class MyCallBack(tf.keras.callbacks.Callback):
             print("\n\nReached %f percent accuracy"%self.acc)
             print("Model is saved")
             self.acc += 0.05
-            self.model.save("my_model_tur")
+            self.model.save("my_model_tur_V2")
         if logs.get("accuracy")>0.98:
             self.model.stop_training = True
+            self.model.save("my_model_tur_V2")
             
 
 callback = MyCallBack()
 
 ##########################ENCODER###########################################
-input_encoder = tf.keras.layers.Input(shape = (Encoder_Input.shape[-1]))
+input_encoder = tf.keras.layers.Input(shape = (Encoder_Input.shape[-1]), name = "input_encoder")
 embedding_1 = tf.keras.layers.Embedding(EngWord+1, 256, name = "Embedding_1")(input_encoder)
 _, forward_state_h, forward_state_c, backward_state_h, backward_state_c = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(256, return_state = True, name = "LSTM_1"))(embedding_1)
-encoder_for_state = [forward_state_h, forward_state_c]
-encoder_back_state = [backward_state_h, backward_state_c]
-
+encoder_state_h = tf.keras.activations.softmax()(tf.math.add(forward_state_h, backward_state_h))
+encoder_state_c = tf.keras.activations.softmax()(tf.math.add(forward_state_c, backward_state_c))
+encoderStates = [encoder_state_h, encoder_state_c]
 
 
 #############################################################################################
-EmbeddingLayer = tf.keras.layers.Embedding(EngWord+1, 256, name = "Embedding_2")
 
-######################## DECODER Forward Layer ##############################################
+# ######################## DECODER  ##############################################
 
-input_for_decoder = tf.keras.layers.Input(shape = (Dec_For_Input.shape[-1]), name = "input_for_decoder")
-output_forward = EmbeddingLayer(input_for_decoder)
-output_forward, _,  _ = tf.keras.layers.LSTM(256, return_sequences = True, return_state = True, name = "LSTM_2")(output_forward, initial_state = encoder_for_state)
+input_decoder = tf.keras.layers.Input(shape = (Decoder_Input.shape[-1]), name = "input_decoder")
+output = tf.keras.layers.Embedding(TurWord+1, 256, name = "Embedding_2")(input_decoder)
+output, _,  _ = tf.keras.layers.LSTM(256, return_sequences = True, return_state = True, name = "LSTM_2")(output, initial_state = encoderStates)
+output = tf.keras.layers.Dense(TurWord+1, activation = "softmax")(output)
 #############################################################################
 
-######################## Decoder Backward Layer #############################################
-input_back_decoder = tf.keras.layers.Input(shape = (Dec_Back_Inp.shape[-1]), name = "input_back_decoder")
-output_backward = EmbeddingLayer(input_back_decoder) 
-output_backward, _,  _ = tf.keras.layers.LSTM(256, return_sequences = True, return_state = True, name = "LSTM_3")(output_backward, initial_state = encoder_back_state)
 
-#############################################################################################
 
-output = tf.keras.layers.Concatenate()([output_forward, output_backward])
-
-output = tf.keras.layers.Dense(TurWord+1, activation = "softmax")(output)
-
-model = tf.keras.models.Model([input_encoder, input_for_decoder, input_back_decoder], output)
-
+model = tf.keras.models.Model([input_encoder, input_decoder], output)
 
 
 
@@ -68,5 +65,5 @@ model.compile(loss = "sparse_categorical_crossentropy", optimizer = "adam", metr
 
 
 if __name__ == "__main__":
-    model.fit([Encoder_Input, Dec_For_Input, Dec_Back_Inp], Dec_For_Output , epochs = 50, callbacks = [callback], validation_split = 0.1)
+    model.fit([Encoder_Input, Decoder_Input], Decoder_Output , epochs = 50, callbacks = [callback], validation_split = 0.1)
 

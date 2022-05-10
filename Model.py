@@ -3,7 +3,7 @@ import Data
 import tensorflow as tf
 
 ###########################################
-Decoder_Input, Decoder_Output, Encoder_Input = Data.PrepareData("tur.txt")
+Encoder_Input, Decoder_Input, Decoder_Output = Data.PrepareData("tur.txt")
 EngWord = Data.e
 TurWord = Data.t
 MaxTurLen = Data.MaxLenTur
@@ -11,13 +11,13 @@ MaxEngLen = Data.MaxLenEng
 
 ############################################
 
-Decoder_Input_train = Decoder_Input
-Encoder_Input_train = Encoder_Input
-Decoder_Output_train = Decoder_Output
+Decoder_Input_train = Decoder_Input[:45000]
+Encoder_Input_train = Encoder_Input[:45000]
+Decoder_Output_train = Decoder_Output[:45000]
 
 #############################################
 
-print(Decoder_Input_train.shape, Encoder_Input_train.shape, Decoder_Output_train.shape)
+
 
 class MyCallBack(tf.keras.callbacks.Callback):
     def __init__(self):

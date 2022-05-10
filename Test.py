@@ -3,20 +3,16 @@ import Data
 import numpy as np
 
 
-NumOfSamples = 5000
 
 
 
-model = tf.keras.models.load_model("my_model_deu")
-decInp, decOut, encInp = Data.PrepareData("deu.txt")
+model = tf.keras.models.load_model("my_model_tur")
+encInp, decInp, decOut = Data.PrepareData("tur.txt")
 
-Num2Tur = Data.Number2Tur
-Num2Eng = Data.Number2Eng
+encInp = encInp[45000:]
+decInp = decInp[45000:]
+decOut = decOut[45000:]
 
 
 
-decInp_test = decInp[:NumOfSamples]
-decOut_test = decOut[:NumOfSamples]
-encInp_test = encInp[:NumOfSamples]
-
-model.evaluate([encInp_test, decInp_test], decOut_test)
+model.evaluate([encInp, decInp], decOut)

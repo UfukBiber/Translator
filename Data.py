@@ -37,7 +37,7 @@ def PrepareData(directory):
                 DecoderInput[i].append(0)
             for _ in range(MaxLenTur-len(DecoderOutput[i])):
                 DecoderOutput[i].append(0)
-    return np.asarray(DecoderInput), np.asarray(DecoderOutput), np.asarray(EncoderInput)
+    return np.asarray(EncoderInput), np.asarray(DecoderInput), np.asarray(DecoderOutput)
 
 
 
