@@ -39,8 +39,8 @@ callback = MyCallBack()
 input_encoder = tf.keras.layers.Input(shape = (Encoder_Input.shape[-1]), name = "input_encoder")
 embedding_1 = tf.keras.layers.Embedding(EngWord+1, 256, name = "Embedding_1")(input_encoder)
 _, forward_state_h, forward_state_c, backward_state_h, backward_state_c = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(256, return_state = True, name = "LSTM_1"))(embedding_1)
-encoder_state_h = tf.keras.activations.softmax()(tf.math.add(forward_state_h, backward_state_h))
-encoder_state_c = tf.keras.activations.softmax()(tf.math.add(forward_state_c, backward_state_c))
+encoder_state_h = tf.concat([forward_state_h, backward_state_h], axis = 1)
+encoder_state_c = tf.concat([forward_state_c, backward_state_c], axis = 1)
 encoderStates = [encoder_state_h, encoder_state_c]
 
 
@@ -50,7 +50,7 @@ encoderStates = [encoder_state_h, encoder_state_c]
 
 input_decoder = tf.keras.layers.Input(shape = (Decoder_Input.shape[-1]), name = "input_decoder")
 output = tf.keras.layers.Embedding(TurWord+1, 256, name = "Embedding_2")(input_decoder)
-output, _,  _ = tf.keras.layers.LSTM(256, return_sequences = True, return_state = True, name = "LSTM_2")(output, initial_state = encoderStates)
+output, _,  _ = tf.keras.layers.LSTM(512, return_sequences = True, return_state = True, name = "LSTM_2")(output, initial_state = encoderStates)
 output = tf.keras.layers.Dense(TurWord+1, activation = "softmax")(output)
 #############################################################################
 
