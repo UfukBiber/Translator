@@ -20,43 +20,19 @@ encInpLength = Data_V2.MaxLenEng
 LengthOfOutput = Data_V2.MaxLenTur
 # ##################### Encoder #############################
 Enc_Inp = model.inputs[0]
-Enc_Out, F_E_S_h, F_E_S_c, B_E_S_h, B_E_S_c = model.layers[5].output
-Enc_For_states = [F_E_S_h, F_E_S_c]
-Enc_Back_states = [B_E_S_h, B_E_S_c]  
+Enc_Out, F_E_S_h, F_E_S_c, B_E_S_h, B_E_S_c = model.layers[4].output
+Enc_states_h = tf.concat([F_E_S_h, B_E_S_h], axis = -1)
+Enc_states_c = tf.concat([F_E_S_c, B_E_S_c])
+Enc_states = [Enc_states_h, Enc_states_c]
 
-Enc_model = tf.keras.models.Model(Enc_Inp, [Enc_For_states, Enc_Back_states])
+Enc_model = tf.keras.models.Model(Enc_Inp, Enc_states)
 
 
 
 # ###################### Decoder ##############################
 
-Decoder_Forward_Input = model.inputs[1]
-Decoder_Backward_Input = model.inputs[2]
-
-Embedded_Forward_Input = model.layers[4](Decoder_Forward_Input)
-Embedded_Backward_Input = model.layers[4](Decoder_Backward_Input)
-
-F_D_I_S_h, F_D_I_S_c = tf.keras.layers.Input(shape = (256, ), name = "input_3"), tf.keras.layers.Input(shape = (256, ), name = "input_4")
-B_D_I_S_h, B_D_I_S_c = tf.keras.layers.Input(shape = (256, ), name = "input_5"), tf.keras.layers.Input(shape = (256, ), name = "input_6")
-
-Dec_LSTM_For = model.layers[6]
-Dec_LSTM_Back = model.layers[7]
-
-Dec_Inp_Forward_states = [F_D_I_S_h, F_D_I_S_c]
-Dec_Inp_Backward_states = [B_D_I_S_h, B_D_I_S_c]
-
-Dec_For_out, F_D_O_S_h, F_D_O_S_c= Dec_LSTM_For(Embedded_Forward_Input, initial_state = Dec_Inp_Forward_states)
-Dec_Back_out, B_D_O_S_h, B_D_O_S_c = Dec_LSTM_Back(Embedded_Backward_Input, initial_state = Dec_Inp_Backward_states)
-
-dec_output = model.layers[8]([Dec_For_out, Dec_Back_out])
-dec_output = model.layers[-1](dec_output)
-Dec_Out_For_states = [F_D_O_S_h, F_D_O_S_c]
-Dec_Out_Bac_states = [B_D_O_S_h, B_D_O_S_c]
 
 
-
-Dec_Model = tf.keras.models.Model([Decoder_Forward_Input, Decoder_Backward_Input] + Dec_Inp_Forward_states + Dec_Inp_Backward_states, [dec_output]+Dec_Out_For_states+Dec_Out_Bac_states)
-print(Dec_Model.summary())
 
 
 def Predict(ind):
@@ -79,6 +55,7 @@ def Predict(ind):
         For_initialStates = [f_h, f_c]
         Back_initialStates = [b_h, b_c]
         Results.append(output)
+
         if len(Results) == LengthOfOutput or output == 2:
             break
     return Results, dec_For_Out
