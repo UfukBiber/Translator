@@ -2,50 +2,52 @@ import numpy as np
 import Data
 import tensorflow as tf
 
+QUANTITY = 50
 
+TRAIN = int(0.9 * 50000)
 
 ###########################################
-Encoder_Input, Decoder_Input, Decoder_Output= Data.PrepareData("tur.txt")
+Encoder_Input, Decoder_Input, Decoder_Output= Data.PrepareData("tur.txt", QUANTITY)
 EngWord = Data.e
 TurWord = Data.t
 MaxTurLen = Data.MaxLenTur
 MaxEngLen = Data.MaxLenEng
 
-Encoder_Input = Encoder_Input[:45000]
-Decoder_Input = Decoder_Input[:45000]
-Decoder_Output = Decoder_Output[:45000]
+Encoder_Input = Encoder_Input[:TRAIN]
+Decoder_Input = Decoder_Input[:TRAIN]
+Decoder_Output = Decoder_Output[:TRAIN]
 ###############################################
 
 
-class BahdanauAttention(tf.keras.layers.Layer):
-    def __init__(self, UnitSize):
-        super(BahdanauAttention, self).__init__()
-        
-        self.dense_1 = tf.keras.layers.Dense(UnitSize, use_bias = False)
-        self.dense_2 = tf.keras.layers.Dense(UnitSize, use_bias = False)
+class Encoder(tf.keras.layers.Layer):
+    def __init__(self, unitsize, embedding_size):
+        super(Encoder, self).__init__()
+        self.embedding = tf.keras.layers.Embedding(EngWord+1, embedding_size)
+        self.Rnn = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(unitsize, return_state = True, return_sequences = True))
 
-        self.attention = tf.keras.layers.AdditiveAttention()
+    def call(self, input):
+        output = self.embedding(input)
+        output, for_state_h, for_state_c, back_state_h, back_state_c = self.Rnn(output)
+        state_h = tf.concat([for_state_h, back_state_h], axis = -1)
+        state_c = tf.concat([for_state_c, back_state_c], axis = -1)
+        return output, state_h, state_c
 
-    def call(self, query, value, mask):
 
-        W1_query = self.dense_1(query)
-        W2_key= self.dense_2(value)
-
-        query_mask = tf.ones(query.shape[:-1], dtype = bool)
-        value_mask = mask
-        context_vector, attention_weights = self.attention(
-            inputs = [W1_query, value, W2_key],
-            mask = [query_mask, value_mask]
-            return_attention_scores = True
-        ) 
-        return context_vector, attention_weights
-
+class Decoder(tf.keras.layers.Layer):
+    def __init__(self, unitsize, embedding_size):
+        super(Decoder, self).__init__()
+        embedding = tf.keras.layers.Embedding(TurWord+1, embedding_size)
+        pass
 
 
 
 
 
 if __name__ == "__main__":
-    Attention = BahdanauAttention(4)
-    example  = tf.ones((64, 18))
+    Attention = Encoder(256, 256)
+    y, state_h, state_c = Attention(Encoder_Input)
+    print(y.shape)
+    print(state_h.shape)
+    print(state_c.shape)
+
     

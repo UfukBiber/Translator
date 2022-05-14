@@ -12,7 +12,7 @@ Number2Eng = {0 : "_", 1 : "/s", 2 : "/e"}
 MaxLenTur = 0
 MaxLenEng = 0
 
-def PrepareData(directory):
+def PrepareData(directory, quantity):
     global e, t
     EncoderInput = []
     DecoderInput = []
@@ -20,7 +20,7 @@ def PrepareData(directory):
     with open(directory, "r") as f:
         data = f.readlines()
         f.close()
-    data = data[0:50000]
+    data = data[0:quantity]
     for line in data:
         line = re.split(r"\t", line)[0:2]
         EncoderInput.append(VectorizeData(line[0], False))
