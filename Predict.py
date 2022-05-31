@@ -39,7 +39,9 @@ InpVectorization = m3.InpVectorization
 wordsInp = m3.InpWords
 TarVectorization = m3.TarVectorization
 TarWords = m3.TarWords
-string = "I am very happy"
+string = "My breakfast usually consists of coffee with milk, a piece of bread and jam, a small banana, a piece of orange and some dried plums."
+string_2 = "You should read the kind of books that contain the kind of information that will be useful to you later in life."
+string_3 = "My friend was very angry when he saw the driver of the car in front of him throw a cigarette butt out the window."
 
 
 
@@ -63,3 +65,5 @@ def Predict(text):
     return String
 
 print(Predict(string))
+print(Predict(string_2))
+print(Predict(string_3))

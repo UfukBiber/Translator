@@ -8,7 +8,6 @@ MaxVocabSize = 15000
 MaxSequenceLength = 20
 ValidationSplit = 0.1
 
-
 def readData(directory, Quantity = None):
     Data = []
     with open(directory, "r") as f:
@@ -44,12 +43,20 @@ TarVectorization = tf.keras.layers.TextVectorization(max_tokens = MaxVocabSize,
 
 
 Pairs = readData("tur.txt")
+TrainLen = (len(Pairs) // 10) * 9
+
+TrainPairs = Pairs[:TrainLen]
 
 
 Inp, Tar = dividePair(Pairs)
+TrainInp, TrainTar = dividePair(TrainPairs)
+
 
 InpVectorization.adapt(Inp)
 TarVectorization.adapt(Tar)
+
+
+
 
 def getData(Inp, Tar):
     Inp = InpVectorization(Inp)
@@ -63,49 +70,57 @@ def getData(Inp, Tar):
 InpWords = InpVectorization.get_vocabulary()
 TarWords = TarVectorization.get_vocabulary()
 
-EncoderInput, DecoderInput, Output = getData(Inp, Tar)
+Train_EncoderInput, Train_DecoderInput, Train_Output = getData(TrainInp, TrainTar)
 
 
-class MyCallBack(tf.keras.callbacks.Callback):
-    def __init__(self):
-        self.acc = 0.80
-    def on_epoch_end(self, epoch, logs={}):
-        if logs.get("accuracy") > self.acc:
-            print("\n\nReached %f percent accuracy"%self.acc)
-            print("Model is saved")
-            self.acc += 0.05
-            self.model.save("my_model_tur_V2")
-        if logs.get("accuracy")>0.98:
-            self.model.stop_training = True
-            self.model.save("my_model_tur_V2")
+
+def formatDataset(Inp, Tar):
+    return ({"EncoderInput":Inp, "DecoderInput":Tar[:, :-1]}, Tar[:, 1:]) 
+
+
+
+# class MyCallBack(tf.keras.callbacks.Callback):
+#     def __init__(self):
+#         self.acc = 0.80
+#     def on_epoch_end(self, epoch, logs={}):
+#         if logs.get("accuracy") > self.acc:
+#             print("\n\nReached %f percent accuracy"%self.acc)
+#             print("Model is saved")
+#             self.acc += 0.05
+#             self.model.save("my_model_tur_V2")
+#         if logs.get("accuracy")>0.98:
+#             self.model.stop_training = True
+#             self.model.save("my_model_tur_V2")
             
 
-callback = MyCallBack()
+# callback = MyCallBack()
 
-##########################ENCODER###########################################
-input_encoder = tf.keras.layers.Input(shape = (None, ), name = "input_encoder")
-embedding_1 = tf.keras.layers.Embedding(len(InpWords), 256, name = "Embedding_1", mask_zero = True)(input_encoder)
-_, forward_state_h, forward_state_c, backward_state_h, backward_state_c = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(256, return_state = True, name = "LSTM_1"))(embedding_1)
-encoder_state_h = tf.concat([forward_state_h, backward_state_h], axis = -1)
-encoder_state_c = tf.concat([forward_state_c, backward_state_c], axis = -1)
-encoderStates = [encoder_state_h, encoder_state_c]
-
-
-#############################################################################################
-
-# ######################## DECODER  ##############################################
-
-input_decoder = tf.keras.layers.Input(shape = (None, ), name = "input_decoder")
-output = tf.keras.layers.Embedding(len(TarWords), 256, name = "Embedding_2", mask_zero = True)(input_decoder)
-output, _,  _ = tf.keras.layers.LSTM(512, return_sequences = True, return_state = True, name = "LSTM_2")(output, initial_state = encoderStates)
-output = tf.keras.layers.Dropout(0.5)(output)
-output = tf.keras.layers.Dense(len(TarWords), activation = "softmax")(output)
+# ##########################ENCODER###########################################
+# Encoder_Input = tf.keras.layers.Input(shape = (20, ), name = "Encoder_Input")
+# Positional_Encoder_Input = tf.keras.layers.Input(shape = (20, ), name="Positional_Encoder_Input")
+# embedded = tf.keras.layers.Embedding(len(InpWords), 256, name = "Encoder_Embedding", mask_zero = True)(Encoder_Input)
+# _, forward_state_h, forward_state_c, backward_state_h, backward_state_c = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(256, return_state = True, name = "LSTM_1"))(embedded)
+# encoder_state_h = tf.keras.layers.Concatenate()([forward_state_h, backward_state_h])
+# encoder_state_c = tf.keras.layers.Concatenate()([forward_state_c, backward_state_c])
+# encoderStates = [encoder_state_h, encoder_state_c]
 
 
-model = tf.keras.models.Model([input_encoder, input_decoder], output)
+# # #############################################################################################
 
-model.compile(loss = "sparse_categorical_crossentropy", optimizer = "adam", metrics = ["accuracy"])
+# # # ######################## DECODER  ##############################################
+
+# input_decoder = tf.keras.layers.Input(shape = (None, ), name = "input_decoder")
+# output = tf.keras.layers.Embedding(len(TarWords), 256, name = "Embedding_2", mask_zero = True)(input_decoder)
+# output, _,  _ = tf.keras.layers.LSTM(512, return_sequences = True, return_state = True, name = "LSTM_2")(output, initial_state = encoderStates)
+# output = tf.keras.layers.Dropout(0.5)(output)
+# output = tf.keras.layers.Dense(len(TarWords), activation = "softmax")(output)
 
 
-if __name__ == "__main__":
-    model.fit([EncoderInput, DecoderInput], Output , epochs = 50, callbacks = [callback], validation_split = ValidationSplit)
+# model = tf.keras.models.Model([Encoder_Input, Positional_Encoder_Input, input_decoder], output)
+
+# model.compile(loss = "sparse_categorical_crossentropy", optimizer = "adam", metrics = ["accuracy"])
+
+
+# if __name__ == "__main__":
+    
+#     model.fit([Train_EncoderInput,  Train_DecoderInput], Train_Output , epochs = 50, callbacks = [callback], validation_split = ValidationSplit)
