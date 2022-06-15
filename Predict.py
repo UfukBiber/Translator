@@ -1,21 +1,20 @@
 import tensorflow as tf
-import Model_3 as m3
 import numpy as np
-#### 2 is [START]
-#### 3 is [END]
-model = tf.keras.models.load_model("my_model_tur")
+import EncoderDecoder as m
+
+model = tf.keras.models.load_model("EncoderDecoderModel")
+print(model.layers)
 
 ###########################ENCODER#############
 
-EncoderInput = model.inputs[0]
-output, for_state_h, for_state_c, back_state_h, back_state_c = model.layers[3].output
+encoderInput = model.inputs[0]
+encoderState_h = model.layers[5].output
+encoderState_c = model.layers[6].output
 
-encoder_state_h = tf.concat([for_state_h, back_state_h], axis = -1)
-encoder_state_c = tf.concat([for_state_c, back_state_c], axis = -1)
 
-encoderStates = [encoder_state_h, encoder_state_c]
+encoderStates = [encoderState_h, encoderState_c]
 
-encoderModel = tf.keras.models.Model(EncoderInput, encoderStates)
+encoderModel = tf.keras.models.Model(encoderInput, encoderStates)
 
 
 #####################################################
@@ -35,19 +34,16 @@ DecoderModel = tf.keras.models.Model([DecoderInput]+DecoderInpStates, [output]+D
 
 #######################################################3
 
-InpVectorization = m3.InpVectorization
-wordsInp = m3.InpWords
-TarVectorization = m3.TarVectorization
-TarWords = m3.TarWords
-string = "My breakfast usually consists of coffee with milk, a piece of bread and jam, a small banana, a piece of orange and some dried plums."
-string_2 = "You should read the kind of books that contain the kind of information that will be useful to you later in life."
-string_3 = "My friend was very angry when he saw the driver of the car in front of him throw a cigarette butt out the window."
+
+string = "I am very happy because schools are off today."
+string_2 = "Reading is a very nice habit"
+string_3 = "My friend is very angry to me."
 
 
 
 
 def Predict(text):
-    InpVector = InpVectorization([text])
+    InpVector = m.InpVectorization([text])
     States = encoderModel(InpVector)
     TarInp = np.zeros((1, 1))
     TarInp[:, 0] = 2
@@ -59,11 +55,11 @@ def Predict(text):
         States = [state_h, state_c]
         output = np.argmax(np.squeeze(output))
         TarInp[:, 0] = output
-        Result.append(TarWords[output])
+        Result.append(m.TarVocabularies[output])
         step += 1
     String = " ".join(Result)
     return String
-
-print(Predict(string))
-print(Predict(string_2))
-print(Predict(string_3))
+if __name__ == "__main__":
+    print(Predict(string))
+    print(Predict(string_2))
+    print(Predict(string_3))
