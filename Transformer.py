@@ -90,12 +90,12 @@ valDataset = valDataset.shuffle(2048).prefetch(16)
 
 class PositionalEmbedding(tf.keras.layers.Layer):
     def __init__(self, maxWord, embeddingDims, seqLength, **kwargs):
-        super(PositionalEmbedding, self).__init__(**kwargs)
         self.maxWord = maxWord
         self.embeddingDims = embeddingDims
         self.seqLegth = seqLength
         self.embeddingWord = tf.keras.layers.Embedding(maxWord, embeddingDims)
         self.embeddingPosition = tf.keras.layers.Embedding(seqLength, embeddingDims)
+        super(PositionalEmbedding, self).__init__(**kwargs)
     
     def call(self, inputs):
         length = tf.shape(inputs)[-1]
@@ -108,7 +108,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
         return tf.math.not_equal(inputs, 0)
 
     def get_config(self):
-        config = super().get_config()
+        config = super(PositionalEmbedding, self).get_config()
         config.update({
             "maxWord":self.maxWord,
             "embeddingDims":self.embeddingDims,
@@ -118,7 +118,6 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     
 class TransformerEncoder(tf.keras.layers.Layer):
     def __init__(self, embedDims, numHeads, denseDims, **kwargs):
-        super(TransformerEncoder, self).__init__(**kwargs)
         self.embedDims = embedDims
         self.numHeads = numHeads
         self.denseDims = denseDims
@@ -130,7 +129,8 @@ class TransformerEncoder(tf.keras.layers.Layer):
         ])
         self.layerNormalization1 = tf.keras.layers.LayerNormalization() 
         self.layerNormalization2 = tf.keras.layers.LayerNormalization() 
-
+        super(TransformerEncoder, self).__init__(**kwargs)
+        self.supports_masking = True
     def call(self, inputs, mask = None):
         if mask is not None:
             mask = mask[:, tf.newaxis, :]
@@ -140,7 +140,7 @@ class TransformerEncoder(tf.keras.layers.Layer):
         return self.layerNormalization2(projInput + projOut)
 
     def get_config(self):
-        config = super().get_config()
+        config = super(TransformerEncoder, self).get_config()
         config.update({
             "embedDims":self.embedDims,
             "numHeads":self.numHeads,
@@ -150,7 +150,6 @@ class TransformerEncoder(tf.keras.layers.Layer):
     
 class TransformerDecoder(tf.keras.layers.Layer):
     def __init__(self, embedDims, numHeads, denseDims, **kwargs):
-        super(TransformerDecoder, self).__init__(**kwargs)
         self.embedDims = embedDims
         self.numHeads = numHeads
         self.denseDims = denseDims
@@ -164,7 +163,8 @@ class TransformerDecoder(tf.keras.layers.Layer):
         self.layerNormalization1 = tf.keras.layers.LayerNormalization() 
         self.layerNormalization2 = tf.keras.layers.LayerNormalization() 
         self.layerNormalization3 = tf.keras.layers.LayerNormalization() 
-        self.support_masking = True
+        super(TransformerDecoder, self).__init__(**kwargs)
+        self.supports_masking = True
 
     def call(self, inputs, encoderOut, mask = None):
         causal_mask = self.get_causal_attention_mask(inputs)
@@ -184,12 +184,13 @@ class TransformerDecoder(tf.keras.layers.Layer):
         i = tf.range(seqLength)[:, tf.newaxis]
         j = tf.range(seqLength)
         mask = tf.cast(i >= j, dtype = tf.int32)
-        mask = tf.expand_dims(mask, axis = 0)
-        mult = tf.concat([tf.expand_dims(batchSize, -1), tf.constant([1, 1], dtype = tf.int32)], axis = 0)
+        mask = tf.reshape(mask, (1, inputShape[1], inputShape[1]))
+        mult = tf.concat([tf.expand_dims(batchSize, -1), 
+                          tf.constant([1, 1], dtype = tf.int32)], axis = 0)
         return tf.tile(mask, mult)
 
     def get_config(self):
-        config = super().get_config()
+        config = super(TransformerDecoder, self).get_config()
         config.update({
             "embedDims":self.embedDims,
             "numHeads":self.numHeads,
@@ -208,9 +209,17 @@ decoderOut = tf.keras.layers.Dropout(0.5)(decoderOut)
 decoderOut = tf.keras.layers.Dense(len(TarVocabularies), activation = "softmax")(decoderOut)
 
 model = tf.keras.models.Model([encoderInp, decoderInp], decoderOut)
-print(model.summary())
+
 model.compile(loss = "sparse_categorical_crossentropy", optimizer = "adam", metrics = ["accuracy"])
-model.fit(trainDataset, validation_data = valDataset, epochs = 10, callbacks = [tf.keras.callbacks.ModelCheckpoint("TransformerModel", save_best_only = True)])
+
+model = tf.keras.models.load_model("TransformerModel", custom_objects={
+    "PositionalEmbedding":PositionalEmbedding,
+    "TransformerEncoder":TransformerEncoder,
+    "TransformerDecoder":TransformerDecoder,
+})
+
+model.fit(trainDataset, validation_data = valDataset, epochs =3 , callbacks = [tf.keras.callbacks.ModelCheckpoint("TransformerModel", monitor = "val_accuracy", save_best_only = True),
+                                                                                tf.keras.callbacks.EarlyStopping(monitor = "val_accuracy", patience = 2)])
 
 
 string_1 = "I am very happy because schools are off today."

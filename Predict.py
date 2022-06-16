@@ -3,7 +3,6 @@ import numpy as np
 import EncoderDecoder as m
 
 model = tf.keras.models.load_model("EncoderDecoderModel")
-print(model.layers)
 
 ###########################ENCODER#############
 

@@ -2,24 +2,15 @@ import tensorflow as tf
 import numpy as np
 import EncoderDecoder as m
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-if gpus:
-  try:
-    tf.config.experimental.set_virtual_device_configuration(
-        gpus[0],[tf.config.experimental.VirtualDeviceConfiguration(memory_limit=512)])
-  except RuntimeError as e:
-    print(e)
-
-
 
 class PositionalEmbedding(tf.keras.layers.Layer):
     def __init__(self, maxWord, embeddingDims, seqLength, **kwargs):
-        super(PositionalEmbedding, self).__init__(**kwargs)
         self.maxWord = maxWord
         self.embeddingDims = embeddingDims
         self.seqLegth = seqLength
         self.embeddingWord = tf.keras.layers.Embedding(maxWord, embeddingDims)
         self.embeddingPosition = tf.keras.layers.Embedding(seqLength, embeddingDims)
+        super(PositionalEmbedding, self).__init__(**kwargs)
     
     def call(self, inputs):
         length = tf.shape(inputs)[-1]
@@ -32,7 +23,7 @@ class PositionalEmbedding(tf.keras.layers.Layer):
         return tf.math.not_equal(inputs, 0)
 
     def get_config(self):
-        config = super().get_config()
+        config = super(PositionalEmbedding, self).get_config()
         config.update({
             "maxWord":self.maxWord,
             "embeddingDims":self.embeddingDims,
@@ -42,7 +33,6 @@ class PositionalEmbedding(tf.keras.layers.Layer):
     
 class TransformerEncoder(tf.keras.layers.Layer):
     def __init__(self, embedDims, numHeads, denseDims, **kwargs):
-        super(TransformerEncoder, self).__init__(**kwargs)
         self.embedDims = embedDims
         self.numHeads = numHeads
         self.denseDims = denseDims
@@ -54,16 +44,18 @@ class TransformerEncoder(tf.keras.layers.Layer):
         ])
         self.layerNormalization1 = tf.keras.layers.LayerNormalization() 
         self.layerNormalization2 = tf.keras.layers.LayerNormalization() 
+        super(TransformerEncoder, self).__init__(**kwargs)
+        self.supports_masking = True
     def call(self, inputs, mask = None):
         if mask is not None:
             mask = mask[:, tf.newaxis, :]
         attentionOutput = self.attention(inputs, inputs, attention_mask = mask)
-        projInput = self.layerNormalization1(attentionOutput)
+        projInput = self.layerNormalization1(inputs + attentionOutput)
         projOut = self.denseProj(projInput)
         return self.layerNormalization2(projInput + projOut)
 
     def get_config(self):
-        config = super().get_config()
+        config = super(TransformerEncoder, self).get_config()
         config.update({
             "embedDims":self.embedDims,
             "numHeads":self.numHeads,
@@ -73,7 +65,6 @@ class TransformerEncoder(tf.keras.layers.Layer):
     
 class TransformerDecoder(tf.keras.layers.Layer):
     def __init__(self, embedDims, numHeads, denseDims, **kwargs):
-        super(TransformerDecoder, self).__init__(**kwargs)
         self.embedDims = embedDims
         self.numHeads = numHeads
         self.denseDims = denseDims
@@ -87,7 +78,9 @@ class TransformerDecoder(tf.keras.layers.Layer):
         self.layerNormalization1 = tf.keras.layers.LayerNormalization() 
         self.layerNormalization2 = tf.keras.layers.LayerNormalization() 
         self.layerNormalization3 = tf.keras.layers.LayerNormalization() 
-        self.support_masking = True
+        super(TransformerDecoder, self).__init__(**kwargs)
+        self.supports_masking = True
+
     def call(self, inputs, encoderOut, mask = None):
         causal_mask = self.get_causal_attention_mask(inputs)
         if mask is not None:
@@ -106,12 +99,13 @@ class TransformerDecoder(tf.keras.layers.Layer):
         i = tf.range(seqLength)[:, tf.newaxis]
         j = tf.range(seqLength)
         mask = tf.cast(i >= j, dtype = tf.int32)
-        mask = tf.expand_dims(mask, axis = 0)
-        mult = tf.concat([tf.expand_dims(batchSize, -1), tf.constant([1, 1], dtype = tf.int32)], axis = 0)
+        mask = tf.reshape(mask, (1, inputShape[1], inputShape[1]))
+        mult = tf.concat([tf.expand_dims(batchSize, -1), 
+                          tf.constant([1, 1], dtype = tf.int32)], axis = 0)
         return tf.tile(mask, mult)
 
     def get_config(self):
-        config = super().get_config()
+        config = super(TransformerDecoder, self).get_config()
         config.update({
             "embedDims":self.embedDims,
             "numHeads":self.numHeads,
