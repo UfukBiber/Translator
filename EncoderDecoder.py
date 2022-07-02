@@ -6,6 +6,7 @@ import random
 
 VALIDATION_SPLIT = 0.1
 BATCH_SIZE = 32
+NUMBER_OF_WORDS = 12000
 
 def get_pairs(dir):
     pairs = []
@@ -46,11 +47,11 @@ def tar_custom_stardardization(input_string):
 
 InpVectorization = tf.keras.layers.TextVectorization(output_mode = "int",
                                                     output_sequence_length = 20,
-                                                    max_tokens = 15000)
+                                                    max_tokens = NUMBER_OF_WORDS)
 TarVectorization = tf.keras.layers.TextVectorization(output_mode = "int",
                                                      standardize = tar_custom_stardardization,
                                                      output_sequence_length = 21,
-                                                     max_tokens = 15000)
+                                                     max_tokens = NUMBER_OF_WORDS)
 
 InpVectorization.adapt(trainInp)
 TarVectorization.adapt(trainTar)
@@ -73,8 +74,33 @@ trainDataset = trainDataset.shuffle(2048).prefetch(16).cache()
 valDataset = valDataset.shuffle(2048).prefetch(16).cache()
 
 
+
+
+########################### Encoder #############################################
+embedding_index = {}
+with open("glove.6B.100d.txt") as f:
+    for line in f:
+        word, coefs = line.split(maxsplit=1)
+        coefs = np.fromstring(coefs, "float64", sep = " ")
+        embedding_index[word] = coefs
+    f.close()
+embedding_matrix = np.zeros((NUMBER_OF_WORDS, 100), "float64")
+
+words_index = dict(zip(InpVocabularies, range(len(InpVocabularies))))
+embedding_matrix = np.zeros((NUMBER_OF_WORDS, 100))
+for word, i in words_index.items():
+    if i < NUMBER_OF_WORDS:
+        embedding_vector = embedding_index.get(word)
+    if embedding_vector is not None:
+        embedding_matrix[i] = embedding_vector
+
+
+
+    
+
 encoderInput = tf.keras.layers.Input(shape = (None, ), name = "Encoder_Input")
-embedded = tf.keras.layers.Embedding(len(InpVocabularies), 256, name = "Encoder_Embedding", mask_zero = True)(encoderInput)
+embedded = tf.keras.layers.Embedding(len(InpVocabularies), 100, name = "Encoder_Embedding", mask_zero = True, trainable = False,
+                                     embeddings_initializer = tf.keras.initializers.Constant(embedding_matrix))(encoderInput)
 _, forward_state_h, forward_state_c, backward_state_h, backward_state_c = tf.keras.layers.Bidirectional(tf.keras.layers.LSTM(256, return_state = True, name = "Encoder_LSTM"))(embedded)
 encoder_state_h = tf.keras.layers.Concatenate()([forward_state_h, backward_state_h])
 encoder_state_c = tf.keras.layers.Concatenate()([forward_state_c, backward_state_c])
@@ -92,7 +118,6 @@ output = tf.keras.layers.Dropout(0.5)(output)
 output = tf.keras.layers.Dense(len(TarVocabularies), activation = "softmax")(output)
 
 if __name__ == "__main__":
-    # model = tf.keras.models.Model([encoderInput, decoderInput], output)
-    model = tf.keras.models.load_model("EncoderDecoderModel")
+    model = tf.keras.models.Model([encoderInput, decoderInput], output)
     model.compile(loss = "sparse_categorical_crossentropy", optimizer = "adam", metrics = ["accuracy"])
-    model.fit(trainDataset, validation_data = valDataset, epochs = 3, callbacks = [tf.keras.callbacks.ModelCheckpoint("EncoderDecoderModel", save_best_only = True)])
+    model.fit(trainDataset, validation_data = valDataset, epochs = 3, callbacks = [tf.keras.callbacks.ModelCheckpoint("GloveEmbedding(EncoderDecoder)", save_best_only = True)])
